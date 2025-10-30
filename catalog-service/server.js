@@ -10,6 +10,8 @@ app.get("/search/:topic", (req, res) => {
   const topic = req.params.topic;
   let results = [];
 
+
+  
   fs.createReadStream("catalog.csv")
     .pipe(csv())
     .on("data", (data) => {
