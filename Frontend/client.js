@@ -1,8 +1,7 @@
-// client.js
 const axios = require("axios");
 const readline = require("readline");
 const chalk = require("chalk");
-const boxen = require("boxen");
+const boxen = require("boxen").default;
 
 // إعداد القراءة من المستخدم
 const rl = readline.createInterface({
@@ -23,66 +22,72 @@ const orderReplicas = [
   "http://order-service-2:3004",
 ];
 
-let catalogReplicaIndex = 0;
-let orderReplicaIndex = 0;
-
-// اختيار السيرفر التالي (Load Balancing)
-function getNextCatalogReplica() {
-  catalogReplicaIndex = (catalogReplicaIndex + 1) % catalogReplicas.length;
-  console.log(chalk.blueBright(`📡 Using Catalog Server: ${catalogReplicas[catalogReplicaIndex]}`));
-  return catalogReplicas[catalogReplicaIndex];
+// اختيار السيرفر التالي (Load Balancing) مع التحقق من وجود الكتاب
+async function tryCatalogRequest(path) {
+  for (let server of catalogReplicas) {
+    try {
+      const response = await axios.get(`${server}${path}`);
+      return { data: response.data, server };
+    } catch (err) {
+      // إذا 404 نجرب السيرفر التالي
+      if (err.response && err.response.status === 404) continue;
+      throw err;
+    }
+  }
+  throw { message: "Book or topic not found on any catalog server" };
 }
 
+// اختيار السيرفر للطلبات الخاصة بالطلبات
 function getNextOrderReplica() {
-  orderReplicaIndex = (orderReplicaIndex + 1) % orderReplicas.length;
-  console.log(chalk.blueBright(`📡 Using Order Server: ${orderReplicas[orderReplicaIndex]}`));
-  return orderReplicas[orderReplicaIndex];
+  const server = orderReplicas.shift();
+  orderReplicas.push(server);
+  console.log(chalk.blueBright(`Using Order Server: ${server}`));
+  return server;
 }
 
-// شاشة الترحيب 🎉
+// شاشة الترحيب بدون رموز مزعجة
 console.log(
   boxen(
-    chalk.cyan.bold("📚 Welcome to BAZAR.COM 📚") +
+    chalk.cyan.bold("Welcome to BAZAR.COM") +
       "\n" +
-      chalk.greenBright("Your gateway to the world of books! "),
+      chalk.greenBright("Your gateway to the world of books!"),
     {
       padding: 1,
       margin: 1,
       borderStyle: "round",
       borderColor: "magenta",
-      backgroundColor: "#1e1e1e",
     }
   )
 );
 
 // القائمة الرئيسية
 function showMenu() {
-  console.log(chalk.yellow.bold("\n📖 What would you like to do?"));
-  console.log(chalk.cyan("1.") + " 🔍 Search for books by topic");
-  console.log(chalk.cyan("2.") + " ℹ️  Get info about a book");
-  console.log(chalk.cyan("3.") + " 💳 Purchase a book");
-  console.log(chalk.cyan("4.") + " 🚪 Exit");
-  rl.question(chalk.magenta("\n Choose an option (1-4): "), handleUserInput);
+  console.log(chalk.yellow.bold("\nWhat would you like to do?"));
+  console.log(chalk.cyan("1.") + " Search for books by topic");
+  console.log(chalk.cyan("2.") + " Get info about a book");
+  console.log(chalk.cyan("3.") + " Purchase a book");
+  console.log(chalk.cyan("4.") + " Exit");
+  rl.question(chalk.magenta("\nChoose an option (1-4): "), handleUserInput);
 }
 
 // التعامل مع اختيار المستخدم
 function handleUserInput(option) {
   switch (option) {
     case "1":
-      rl.question(chalk.yellow("💡 Enter the topic: "), searchBooks);
+      rl.question(chalk.yellow("Enter the topic: "), searchBooks);
       break;
     case "2":
-      rl.question(chalk.yellow("📘 Enter the item number of the book: "), getBookInfo);
+      rl.question(chalk.yellow("Enter the item number of the book: "), getBookInfo);
       break;
     case "3":
-      rl.question(chalk.yellow("💰 Enter the item number to purchase: "), purchaseBook);
+      rl.question(chalk.yellow("Enter the item number to purchase: "), purchaseBook);
       break;
     case "4":
-      console.log(chalk.greenBright("\n Thank you for visiting Bazar.com! Happy reading! 📖"));
+      console.log(chalk.greenBright("\nThank you for visiting Bazar.com!"));
       rl.close();
       break;
     default:
-      console.log(chalk.redBright("❌ Invalid option. Try again."));
+      console.log(chalk.redBright("Invalid option. Try again."));
       showMenu();
   }
 }
@@ -98,89 +103,70 @@ function setCache(key, data) {
 }
 
 function invalidateCache(key) {
-  if (cache[key]) {
-    delete cache[key];
-    console.log(chalk.gray(`🧹 Cache invalidated for: ${key}`));
-  }
+  if (cache[key]) delete cache[key];
 }
 
 // البحث عن الكتب
-function searchBooks(topic) {
+async function searchBooks(topic) {
   const cacheKey = `search:${topic}`;
   const cachedData = getFromCache(cacheKey);
 
   if (cachedData) {
-    console.log(chalk.greenBright("\n📦 Books found (from cache):"));
+    console.log(chalk.greenBright("\nBooks found (from cache):"));
     console.table(cachedData);
     return showMenu();
   }
 
-  const catalogServer = getNextCatalogReplica();
-
-  axios
-    .get(`${catalogServer}/search/${topic}`)
-    .then((response) => {
-      console.log(chalk.greenBright("\n✨ Books found:"));
-      console.table(response.data);
-      setCache(cacheKey, response.data);
-      showMenu();
-    })
-    .catch((err) => {
-      console.log(chalk.redBright("❌ Error:"), err.response ? err.response.data : err.message);
-      showMenu();
-    });
+  try {
+    const { data, server } = await tryCatalogRequest(`/search/${topic}`);
+    console.log(chalk.greenBright(`\nBooks found from ${server}:`));
+    console.table(data);
+    setCache(cacheKey, data);
+  } catch (err) {
+    console.log(chalk.redBright("Error:"), err.message || err);
+  }
+  showMenu();
 }
 
 // عرض معلومات كتاب
-function getBookInfo(itemNumber) {
+async function getBookInfo(itemNumber) {
   const cacheKey = `info:${itemNumber}`;
   const cachedData = getFromCache(cacheKey);
 
   if (cachedData) {
-    console.log(chalk.greenBright("\n📘 Book info (from cache):"));
+    console.log(chalk.greenBright("\nBook info (from cache):"));
     console.table([cachedData]);
     return showMenu();
   }
 
-  const catalogServer = getNextCatalogReplica();
-
-  axios
-    .get(`${catalogServer}/info/${itemNumber}`)
-    .then((response) => {
-      console.log(chalk.cyanBright("\n📖 Book info:"));
-      console.table([response.data]);
-      setCache(cacheKey, response.data);
-      showMenu();
-    })
-    .catch((err) => {
-      console.log(chalk.redBright("❌ Error:"), err.response ? err.response.data : err.message);
-      showMenu();
-    });
+  try {
+    const { data, server } = await tryCatalogRequest(`/info/${itemNumber}`);
+    console.log(chalk.cyanBright(`\nBook info from ${server}:`));
+    console.table([data]);
+    setCache(cacheKey, data);
+  } catch (err) {
+    console.log(chalk.redBright("Error:"), err.message || err);
+  }
+  showMenu();
 }
 
 // شراء كتاب
-function purchaseBook(itemNumber) {
+async function purchaseBook(itemNumber) {
   const orderServer = getNextOrderReplica();
+  try {
+    const response = await axios.post(`${orderServer}/purchase/${itemNumber}`);
+    console.log(chalk.green.bold(`\n${response.data.message}`));
 
-  axios
-    .post(`${orderServer}/purchase/${itemNumber}`)
-    .then((response) => {
-      console.log(chalk.green.bold(`\n🎉 ${response.data.message}`));
-      const cacheKey = `info:${itemNumber}`;
-      invalidateCache(cacheKey);
+    invalidateCache(`info:${itemNumber}`);
 
-      const catalogServer = getNextCatalogReplica();
-      axios.get(`${catalogServer}/info/${itemNumber}`).then((response) => {
-        const topic = response.data.topic;
-        const searchCacheKey = `search:${topic}`;
-        invalidateCache(searchCacheKey);
-      });
-      showMenu();
-    })
-    .catch((err) => {
-      console.log(chalk.redBright("❌ Error:"), err.response ? err.response.data : err.message);
-      showMenu();
-    });
+    try {
+      const { data } = await tryCatalogRequest(`/info/${itemNumber}`);
+      invalidateCache(`search:${data.topic}`);
+    } catch {}
+  } catch (err) {
+    console.log(chalk.redBright("Error:"), err.response ? err.response.data : err.message);
+  }
+  showMenu();
 }
 
 // تشغيل البرنامج
