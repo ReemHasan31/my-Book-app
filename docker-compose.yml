@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  catalog-service:
+    build: ./catalog-service
+    container_name: catalog-service
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./catalog-service:/app
