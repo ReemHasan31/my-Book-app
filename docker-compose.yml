@@ -58,7 +58,7 @@ services:
     image: frontend-service
     container_name: frontend-service
     build:
-      context: ./frontend
+      context: ./Frontend
     networks:
       - network1
     depends_on:
