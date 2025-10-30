@@ -1,6 +1,5 @@
 const express = require("express");
 const axios = require("axios");
-
 const app = express();
 const port = process.env.PORT || 3002;
 app.post("/purchase/:item_number", (req, res) => {
@@ -18,7 +17,6 @@ app.post("/purchase/:item_number", (req, res) => {
         .json({ message: "Error processing purchase", error: error.message });
     });
 });
-
 app.listen(port, () => {
   console.log(`Order service is running on http://order-service:${port}`);
 });
