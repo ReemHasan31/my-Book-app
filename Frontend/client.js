@@ -45,7 +45,7 @@ function getNextOrderReplica() {
   return server;
 }
 
-// شاشة الترحيب بدون رموز مزعجة
+
 console.log(
   boxen(
     chalk.cyan.bold("Welcome to BAZAR.COM") +
