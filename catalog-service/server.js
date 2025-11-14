@@ -4,8 +4,8 @@ const csv = require("csv-parser");
 const { readCSVFile, writeCSVFile } = require("./catalog");
 const app = express();
 const port = process.env.PORT || 3001 ;
-// Search by topic
 
+// Search by topic
 app.get("/search/:topic", (req, res) => {
   const topic = req.params.topic;
   let results = [];
