@@ -2,16 +2,13 @@ const axios = require("axios");
 const readline = require("readline");
 const chalk = require("chalk");
 const boxen = require("boxen").default;
-
 // إعداد القراءة من المستخدم
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
 
-// الكاش المحلي (Cache)
 const cache = {};
-
 // السيرفرات المكررة (Replicas)
 const catalogReplicas = [
   "http://catalog-service-1:3001",
@@ -170,6 +167,4 @@ async function purchaseBook(itemNumber) {
 
 // تشغيل البرنامج
 showMenu();
-
-
 
