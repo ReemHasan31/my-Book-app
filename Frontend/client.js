@@ -7,7 +7,6 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
-
 const cache = {};
 // السيرفرات المكررة (Replicas)
 const catalogReplicas = [
@@ -18,7 +17,6 @@ const orderReplicas = [
   "http://order-service-1:3003",
   "http://order-service-2:3004",
 ];
-
 // اختيار السيرفر التالي (Load Balancing) مع التحقق من وجود الكتاب
 async function tryCatalogRequest(path) {
   for (let server of catalogReplicas) {
@@ -167,4 +165,6 @@ async function purchaseBook(itemNumber) {
 
 // تشغيل البرنامج
 showMenu();
+
+
 
