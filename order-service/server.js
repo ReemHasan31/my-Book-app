@@ -20,3 +20,6 @@ app.post("/purchase/:item_number", (req, res) => {
 app.listen(port, () => {
   console.log(`Order service is running on http://order-service:${port}`);
 });
+
+
+
