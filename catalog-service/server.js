@@ -5,7 +5,7 @@ const { readCSVFile, writeCSVFile } = require("./catalog");
 const app = express();
 const port = process.env.PORT || 3001 ;
 
-// Search by topic
+
 app.get("/search/:topic", (req, res) => {
   const topic = req.params.topic;
   let results = [];
@@ -76,3 +76,5 @@ app.post("/update-quantity/:item_number", (req, res) => {
 app.listen(port, () => {
   console.log(`Catalog service is running on http://catalog-service:${port}`);
 });
+
+
