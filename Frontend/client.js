@@ -45,7 +45,6 @@ function getNextOrderReplica() {
   return server;
 }
 
-
 console.log(
   boxen(
     chalk.cyan.bold("Welcome to BAZAR.COM") +
@@ -171,3 +170,6 @@ async function purchaseBook(itemNumber) {
 
 // تشغيل البرنامج
 showMenu();
+
+
+
