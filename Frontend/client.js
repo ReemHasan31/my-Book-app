@@ -3,16 +3,13 @@ const readline = require("readline");
 const chalk = require("chalk");
 const boxen = require("boxen").default;
 
-// إعداد القراءة من المستخدم
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
 
-// الكاش المحلي (Cache)
 const cache = {};
 
-// السيرفرات المكررة (Replicas)
 const catalogReplicas = [
   "http://catalog-service-1:3001",
   "http://catalog-service-2:3002",
@@ -22,14 +19,31 @@ const orderReplicas = [
   "http://order-service-2:3004",
 ];
 
-// اختيار السيرفر التالي (Load Balancing) مع التحقق من وجود الكتاب
+let catalogIndex = 0;
+let orderIndex = 0;
+
+function getNextCatalogReplica() {
+  catalogIndex = (catalogIndex + 1) % catalogReplicas.length;
+  console.log(catalogReplicas[catalogIndex]);
+  return catalogReplicas[catalogIndex];
+}
+
+function getNextOrderReplica() {
+  orderIndex = (orderIndex + 1) % orderReplicas.length;
+  console.log(orderReplicas[orderIndex]);
+  return orderReplicas[orderIndex];
+}
+
+
+const catalogServer = getNextCatalogReplica();
+
+// Try all catalog replicas
 async function tryCatalogRequest(path) {
   for (let server of catalogReplicas) {
     try {
       const response = await axios.get(`${server}${path}`);
       return { data: response.data, server };
     } catch (err) {
-      // إذا 404 نجرب السيرفر التالي
       if (err.response && err.response.status === 404) continue;
       throw err;
     }
@@ -37,30 +51,32 @@ async function tryCatalogRequest(path) {
   throw { message: "Book or topic not found on any catalog server" };
 }
 
-// اختيار السيرفر للطلبات الخاصة بالطلبات
-function getNextOrderReplica() {
-  const server = orderReplicas.shift();
-  orderReplicas.push(server);
-  console.log(chalk.blueBright(`Using Order Server: ${server}`));
-  return server;
+// Cache helpers
+function getFromCache(key) {
+  return cache[key] ? cache[key].data : null;
 }
 
-// شاشة الترحيب بدون رموز مزعجة
+function setCache(key, data) {
+  cache[key] = { data };
+}
+
+function invalidateCache(key) {
+  if (cache[key]) delete cache[key];
+  console.log(chalk.yellowBright(`Cache cleared successfully for "${key}"`));
+
+}
+
+// Welcome message
 console.log(
   boxen(
     chalk.cyan.bold("Welcome to BAZAR.COM") +
       "\n" +
       chalk.greenBright("Your gateway to the world of books!"),
-    {
-      padding: 1,
-      margin: 1,
-      borderStyle: "round",
-      borderColor: "magenta",
-    }
+    { padding: 1, margin: 1, borderStyle: "round", borderColor: "magenta" }
   )
 );
 
-// القائمة الرئيسية
+// Menu
 function showMenu() {
   console.log(chalk.yellow.bold("\nWhat would you like to do?"));
   console.log(chalk.cyan("1.") + " Search for books by topic");
@@ -70,7 +86,6 @@ function showMenu() {
   rl.question(chalk.magenta("\nChoose an option (1-4): "), handleUserInput);
 }
 
-// التعامل مع اختيار المستخدم
 function handleUserInput(option) {
   switch (option) {
     case "1":
@@ -92,21 +107,7 @@ function handleUserInput(option) {
   }
 }
 
-// إدارة الكاش
-function getFromCache(key) {
-  const entry = cache[key];
-  return entry ? entry.data : null;
-}
-
-function setCache(key, data) {
-  cache[key] = { data };
-}
-
-function invalidateCache(key) {
-  if (cache[key]) delete cache[key];
-}
-
-// البحث عن الكتب
+// Search books
 async function searchBooks(topic) {
   const cacheKey = `search:${topic}`;
   const cachedData = getFromCache(cacheKey);
@@ -128,7 +129,7 @@ async function searchBooks(topic) {
   showMenu();
 }
 
-// عرض معلومات كتاب
+// Get book info
 async function getBookInfo(itemNumber) {
   const cacheKey = `info:${itemNumber}`;
   const cachedData = getFromCache(cacheKey);
@@ -150,13 +151,14 @@ async function getBookInfo(itemNumber) {
   showMenu();
 }
 
-// شراء كتاب
+// Purchase book
 async function purchaseBook(itemNumber) {
   const orderServer = getNextOrderReplica();
   try {
     const response = await axios.post(`${orderServer}/purchase/${itemNumber}`);
     console.log(chalk.green.bold(`\n${response.data.message}`));
 
+    // invalidate caches
     invalidateCache(`info:${itemNumber}`);
 
     try {
@@ -169,5 +171,4 @@ async function purchaseBook(itemNumber) {
   showMenu();
 }
 
-// تشغيل البرنامج
 showMenu();
