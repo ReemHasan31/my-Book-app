@@ -1,5 +1,8 @@
 item_number,title,quantity,price,topic
-1,How to get a good grade in DOS in 40 minutes a day,18,100,distributed systems
+1,How to get a good grade in DOS in 40 minutes a day,11,100,distributed systems
 2,RPCs for Noobs,20,50,distributed systems
-3,Xen and the Art of Surviving Undergraduate School,18,150,undergraduate school
+3,Xen and the Art of Surviving Undergraduate School,12,150,undergraduate school
 4,Cooking for the Impatient Undergrad,20,20,undergraduate school
+5,How to finish Project 3 on time,10,200,project management
+6,Why theory classes are so hard,8,120,education
+7,Spring in the Pioneer Valley,15,90,regional interest
